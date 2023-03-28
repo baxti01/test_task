@@ -21,7 +21,8 @@ class User(Base):
     company_id = Column(Integer, ForeignKey("company.id", ondelete='SET NULL'))
     company = relationship('Company', back_populates='users')
 
-    workers = relationship('Worker', back_populates='company')
+    worker_id = Column(Integer, ForeignKey("workers.id", ondelete='SET NULL'))
+    worker = relationship('Worker', back_populates='user')
 
     balance = relationship('Balance', back_populates='user', uselist=False)
 
