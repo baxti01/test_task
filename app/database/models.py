@@ -33,11 +33,11 @@ class Company(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False, unique=True)
 
-    user = relationship('User', back_populates='company')
+    users = relationship('User', back_populates='company')
 
     workers = relationship('Worker', back_populates='company')
 
-    finance = relationship('Finance', back_populates='company')
+    finances = relationship('Finance', back_populates='company')
 
     balance = relationship('Balance', back_populates='company', uselist=False)
 
@@ -115,7 +115,7 @@ class Invoice(Base):
     date = Column(DateTime, nullable=False, default=datetime.now)
 
     products_id = Column(Integer, ForeignKey('products.id', ondelete='SET NULL'))
-    products = relationship('Products', back_populates='invoice')
+    products = relationship('Product', back_populates='invoice')
 
     # balance_id = Column(Integer, ForeignKey('balance.id', ondelete='CASCADE'))
     # balance = relationship('Balance', back_populates='operations')
@@ -148,7 +148,7 @@ class Budget(Base):
 
     history = relationship('BudgetHistory', back_populates='budget')
 
-    finance = relationship('Finance', back_populates='budget')
+    finances = relationship('Finance', back_populates='budget')
 
     company_id = Column(Integer, ForeignKey('company.id', ondelete='CASCADE'))
     company = relationship('Company', back_populates='budget')
