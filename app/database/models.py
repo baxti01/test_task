@@ -50,7 +50,6 @@ class Worker(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, unique=True)
 
-    user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'))
     user = relationship('User', back_populates='workers')
 
     company_id = Column(Integer, ForeignKey('company.id', ondelete='CASCADE'))
