@@ -2,6 +2,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from app.balance.serializer import Balance
 from app.database.enums import UserRole
 
 
@@ -16,9 +17,7 @@ class BaseUser(BaseModel):
 class User(BaseUser):
     id: int
     company_id: Optional[int] = None
-    # company: Optional[Company] = None
     worker_id: Optional[int] = None
-    # worker: Optional[Worker]
     # balance: Balance
 
     class Config:

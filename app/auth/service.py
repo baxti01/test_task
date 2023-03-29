@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 from app.database.database import get_session
 from app.database import models
 from app.database.enums import UserRole
-from app.serializers.user_serializer import UpdateUser, CreateUser, Token, User
+from app.auth.serializer import UpdateUser, CreateUser, Token, User
+from app import utils
 from app.settings import settings
-from app.utils import validator
 
 auth = OAuth2PasswordBearer(tokenUrl="/auth/sign-in")
 
@@ -33,9 +33,7 @@ class AuthService:
             role=user_data.role.value,
             password=password_hash
         )
-        self.session.add(user)
-        validator.check_unique(self.session)
-        self.session.refresh(user)
+        utils.save_in_db(self.session, user)
         return self.create_token(user)
 
     def sign_in(self, username: str, password: str) -> Token:
@@ -61,7 +59,8 @@ class AuthService:
 
     def get_user(self, user_id: int) -> models.User:
         user = self.session.query(models.User).get(user_id)
-
+        a = UserRole.CUSTOMER
+        print('asdasdasd', user.role == a, user.role.value, a.value)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -79,7 +78,7 @@ class AuthService:
             setattr(user, field, value)
 
         user.password = self.hash_password(user_data.password)
-        validator.check_unique(self.session)
+        utils.check_unique(self.session)
         self.session.refresh(user)
         return self.create_token(user)
 

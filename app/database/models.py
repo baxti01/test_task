@@ -70,6 +70,8 @@ class Balance(Base):
     company_id = Column(Integer, ForeignKey('company.id', ondelete="CASCADE"), nullable=True)
     company = relationship('Company', back_populates='balance')
 
+    invoice_id = Column(Integer, ForeignKey('invoices.id', ondelete='SET NULL'))
+
 
 class BalanceHistory(Base):
     __tablename__ = 'balance_history'
@@ -117,8 +119,7 @@ class Invoice(Base):
     products_id = Column(Integer, ForeignKey('products.id', ondelete='SET NULL'))
     products = relationship('Product', back_populates='invoice')
 
-    # balance_id = Column(Integer, ForeignKey('balance.id', ondelete='CASCADE'))
-    # balance = relationship('Balance', back_populates='operations')
+    balance = relationship('Balance', back_populates='operations', uselist=False)
 
 
 class Finance(Base):

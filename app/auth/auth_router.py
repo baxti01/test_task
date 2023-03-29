@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 
-from app.serializers.user_serializer import UpdateUser, Token, User, CreateUser
-from app.services.auth_service import AuthService, get_current_user
+from app.auth.serializer import UpdateUser, Token, User, CreateUser
+from app.auth.service import AuthService, get_current_user
 
 router = APIRouter(
     prefix="/auth",

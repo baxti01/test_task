@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from app.metadata import api_description, api_version, api_title, api_contacts, tags_metadata
-from .routers import routers
+from . import routers
 
 app = FastAPI(
     title=api_title,
