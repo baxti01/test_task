@@ -29,7 +29,7 @@ async def sign_in(
 
 # It's not correct work need fix
 @router.get("/get_user", response_model=User)
-def get_user(
+async def get_user(
         user_id: int = Depends(get_current_user),
         service: AuthService = Depends()
 ):

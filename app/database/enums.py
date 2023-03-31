@@ -4,7 +4,9 @@ import enum
 class UserRole(enum.Enum):
     DIRECTOR = 'DIRECTOR'
     ADMIN = 'ADMIN'
-    WORKER = 'WORKER'
+    WORKER_DIRECTOR = 'WORKER_DIRECTOR'
+    WORKER_ADMIN = 'WORKER_ADMIN'
+    WORKER_USER = 'WORKER_USER'
     CUSTOMER = 'CUSTOMER'
 
 
@@ -19,5 +21,5 @@ class TransactionType(enum.Enum):
 
 
 class BalanceType(enum.Enum):
-    user = "user"
-    company = "company"
+    USER = "user"
+    COMPANY = "company"

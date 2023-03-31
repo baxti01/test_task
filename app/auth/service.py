@@ -6,11 +6,12 @@ from jose import jwt, JWTError
 from passlib.hash import bcrypt
 from sqlalchemy.orm import Session
 
-from app.database.database import get_session
-from app.database import models
-from app.database.enums import UserRole
-from app.auth.serializer import UpdateUser, CreateUser, Token, User
 from app import utils
+from app.auth.serializer import UpdateUser, CreateUser, Token, User
+from app.balance.service import BalanceService
+from app.database import models
+from app.database.database import get_session
+from app.database.enums import UserRole, BalanceType
 from app.settings import settings
 
 auth = OAuth2PasswordBearer(tokenUrl="/auth/sign-in")
@@ -34,6 +35,13 @@ class AuthService:
             password=password_hash
         )
         utils.save_in_db(self.session, user)
+
+        BalanceService.create_balance(
+            session=self.session,
+            ident=user.id,
+            balance_type=BalanceType.USER
+        )
+
         return self.create_token(user)
 
     def sign_in(self, username: str, password: str) -> Token:
@@ -59,8 +67,6 @@ class AuthService:
 
     def get_user(self, user_id: int) -> models.User:
         user = self.session.query(models.User).get(user_id)
-        a = UserRole.CUSTOMER
-        print('asdasdasd', user.role == a, user.role.value, a.value)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

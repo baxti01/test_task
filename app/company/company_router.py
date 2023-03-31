@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status, Response
 
-from app.company.serializer import Company, CreateCompany, UpdateCompany
 from app.auth.service import get_current_user
+from app.company.serializer import Company, CreateCompany, UpdateCompany
 from app.company.service import CompanyService
 
 router = APIRouter(
@@ -45,21 +45,24 @@ async def delete_company(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/add_user/{added_user_id}", status_code=status.HTTP_200_OK)
+@router.post("/add_user/{new_user_id}", status_code=status.HTTP_200_OK)
 async def add_user(
-        added_user_id: int,
+        new_user_id: int,
         user_id: int = Depends(get_current_user),
         service: CompanyService = Depends()
 ):
-    service.add_user(added_user_id, user_id)
+    service.add_user(new_user_id, user_id)
     return {"message": "Пользователь успешно добавлен!"}
 
 
-@router.delete("/delete_user/{deleted_user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/delete_user/{old_user_id}",
+    status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_user(
-        deleted_user_id: int,
+        old_user_id: int,
         user_id: int = Depends(get_current_user),
         service: CompanyService = Depends()
 ):
-    service.delete_user(deleted_user_id, user_id)
+    service.delete_user(old_user_id, user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

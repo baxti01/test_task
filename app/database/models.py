@@ -22,9 +22,10 @@ class User(Base):
     company = relationship('Company', back_populates='users')
 
     worker_id = Column(Integer, ForeignKey("workers.id", ondelete='SET NULL'))
-    worker = relationship('Worker', back_populates='user')
+    worker = relationship('Worker', back_populates='users')
 
-    balance = relationship('Balance', back_populates='user', uselist=False)
+    balance = relationship('Balance', back_populates='user',
+                           uselist=False, cascade="all, delete")
 
 
 class Company(Base):
@@ -35,13 +36,17 @@ class Company(Base):
 
     users = relationship('User', back_populates='company')
 
-    workers = relationship('Worker', back_populates='company')
+    workers = relationship('Worker', back_populates='company',
+                           cascade="all, delete")
 
-    finances = relationship('Finance', back_populates='company')
+    finances = relationship('Finance', back_populates='company',
+                            cascade="all, delete")
 
-    balance = relationship('Balance', back_populates='company', uselist=False)
+    balance = relationship('Balance', back_populates='company',
+                           uselist=False, cascade="all, delete")
 
-    budget = relationship('Budget', back_populates='company', uselist=False)
+    budget = relationship('Budget', back_populates='company',
+                          uselist=False, cascade="all, delete")
 
 
 class Worker(Base):
@@ -50,7 +55,7 @@ class Worker(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, unique=True)
 
-    user = relationship('User', back_populates='worker')
+    users = relationship('User', back_populates='worker')
 
     company_id = Column(Integer, ForeignKey('company.id', ondelete='CASCADE'))
     company = relationship('Company', back_populates='workers')
@@ -61,8 +66,9 @@ class Balance(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     balance = Column(Numeric(20, 3))
+    date = Column(DateTime, default=datetime.now)
 
-    history = relationship('BalanceHistory', back_populates='balance')
+    history = relationship('BalanceHistory', back_populates='balance', cascade="all, delete")
 
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=True)
     user = relationship('User', back_populates='balance')
@@ -71,6 +77,10 @@ class Balance(Base):
     company = relationship('Company', back_populates='balance')
 
     invoice_id = Column(Integer, ForeignKey('invoices.id', ondelete='SET NULL'))
+    invoice = relationship('Invoice', back_populates='balance')
+
+    finance_id = Column(Integer, ForeignKey('finances.id', ondelete='SET NULL'))
+    finance = relationship('Finance', back_populates='balance')
 
 
 class BalanceHistory(Base):
@@ -86,6 +96,87 @@ class BalanceHistory(Base):
     balance = relationship('Balance', back_populates='history')
 
     invoice_id = Column(Integer, ForeignKey('invoices.id', ondelete='SET NULL'))
+    invoice = relationship('Invoice', back_populates='balance_history')
+
+    finance_id = Column(Integer, ForeignKey('finances.id', ondelete='SET NULL'))
+    finance = relationship('Finance', back_populates='balance_history')
+
+
+class Invoice(Base):
+    __tablename__ = 'invoices'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    seller = Column(Integer, nullable=False)
+    buyer = Column(Integer, nullable=False)
+    to_pay = Column(Numeric(20, 3))
+    paid = Column(Numeric(20, 3))
+    debt = Column(Numeric(20, 3))
+    date = Column(DateTime, nullable=False, default=datetime.now)
+
+    products_id = Column(Integer, ForeignKey('products.id', ondelete='SET NULL'))
+    products = relationship('Product', back_populates='invoice')
+
+    balance = relationship('Balance', back_populates='invoice', uselist=False)
+    balance_history = relationship('BalanceHistory', back_populates='invoice',
+                                   uselist=False)
+
+
+class Finance(Base):
+    # Expense and Income table
+    __tablename__ = 'finances'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    amount = Column(Numeric(20, 3))
+    date = Column(DateTime, default=datetime.now)
+    transaction_type = Column(Enum(TransactionType))
+
+    company_id = Column(Integer, ForeignKey('company.id', ondelete='CASCADE'))
+    company = relationship('Company', back_populates='finances')
+
+    budget = relationship('Budget', back_populates='finance', uselist=False)
+    budget_history = relationship('BudgetHistory', back_populates='finance',
+                                  uselist=False)
+
+    balance = relationship('Balance', back_populates='finance', uselist=False)
+    balance_history = relationship('BalanceHistory', back_populates='finance',
+                                   uselist=False)
+
+
+class Budget(Base):
+    __tablename__ = 'budget'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    income = Column(Numeric(20, 3))
+    expense = Column(Numeric(20, 3))
+    profit = Column(Numeric(20, 3))
+    date = Column(DateTime, default=datetime.now)
+
+    history = relationship('BudgetHistory', back_populates='budget',
+                           cascade="all, delete")
+
+    finance_id = Column(Integer, ForeignKey('finances.id', ondelete='SET NULL'))
+    finance = relationship('Finance', back_populates='budget')
+
+    company_id = Column(Integer, ForeignKey('company.id', ondelete='CASCADE'))
+    company = relationship('Company', back_populates='budget')
+
+
+class BudgetHistory(Base):
+    __tablename__ = 'budget_history'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    income = Column(Numeric(20, 3))
+    expense = Column(Numeric(20, 3))
+    profit = Column(Numeric(20, 3))
+    date = Column(DateTime, default=datetime.now)
+    transaction_type = Column(Enum(TransactionType))
+    amount = Column(Numeric(20, 3))
+
+    finance_id = Column(Integer, ForeignKey('finances.id', ondelete='SET NULL'))
+    finance = relationship('Finance', back_populates='budget_history')
+
+    budget_id = Column(Integer, ForeignKey('budget.id', ondelete='CASCADE'))
+    budget = relationship('Budget', back_populates='history')
 
 
 class Product(Base):
@@ -103,69 +194,3 @@ class Product(Base):
 
     user_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'))
     company_id = Column(Integer, ForeignKey('company.id', ondelete='CASCADE'))
-
-
-class Invoice(Base):
-    __tablename__ = 'invoices'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    seller = Column(Integer, nullable=False)
-    buyer = Column(Integer, nullable=False)
-    to_pay = Column(Numeric(20, 3))
-    paid = Column(Numeric(20, 3))
-    debt = Column(Numeric(20, 3))
-    date = Column(DateTime, nullable=False, default=datetime.now)
-
-    products_id = Column(Integer, ForeignKey('products.id', ondelete='SET NULL'))
-    products = relationship('Product', back_populates='invoice')
-
-    balance = relationship('Balance', back_populates='operations', uselist=False)
-
-
-class Finance(Base):
-    # Expense and Income table
-    __tablename__ = 'finances'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    amount = Column(Numeric(20, 3))
-    date = Column(DateTime, default=datetime.now)
-    transaction_type = Column(Enum(TransactionType))
-
-    company_id = Column(Integer, ForeignKey('company.id', ondelete='CASCADE'))
-    company = relationship('Company', back_populates='finances')
-
-    budget_id = Column(Integer, ForeignKey('budget.id', ondelete='SET NULL'))
-    budget = relationship('Budget', back_populates='finances')
-
-
-class Budget(Base):
-    __tablename__ = 'budget'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    income = Column(Numeric(20, 3))
-    expense = Column(Numeric(20, 3))
-    debt = Column(Numeric(20, 3))
-    profit = Column(Numeric(20, 3))
-
-    history = relationship('BudgetHistory', back_populates='budget')
-
-    finances = relationship('Finance', back_populates='budget')
-
-    company_id = Column(Integer, ForeignKey('company.id', ondelete='CASCADE'))
-    company = relationship('Company', back_populates='budget')
-
-
-class BudgetHistory(Base):
-    __tablename__ = 'budget_history'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    income = Column(Numeric(20, 3))
-    expense = Column(Numeric(20, 3))
-    debt = Column(Numeric(20, 3))
-    profit = Column(Numeric(20, 3))
-    date = Column(DateTime, default=datetime.now)
-    transaction_type = Column(Enum(TransactionType))
-    amount = Column(Numeric(20, 3))
-
-    budget_id = Column(Integer, ForeignKey('budget.id', ondelete='CASCADE'))
-    budget = relationship('Budget', back_populates='history')

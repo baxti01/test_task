@@ -1,13 +1,15 @@
 from typing import List
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from sqlalchemy.orm import Session
 
+from app import utils
+from app.balance.service import BalanceService
+from app.budget.service import BudgetService
+from app.company.serializer import CreateCompany, UpdateCompany
 from app.database import models
 from app.database.database import get_session
-from app.database.enums import UserRole
-from app.company.serializer import CreateCompany, UpdateCompany
-from app import utils
+from app.database.enums import UserRole, BalanceType
 
 
 class CompanyService:
@@ -18,25 +20,20 @@ class CompanyService:
             self,
             user_id: int,
             permissions: List[UserRole]
-    ):
+    ) -> models.User:
         user = utils.check_user_permission(
             session=self.session,
             user_id=user_id,
             permissions=permissions
         )
-        company: models.Company = utils.get_in_db(
-            session=self.session,
-            model=models.Company,
-            ident=user.company_id
-        )
-        return company, user
+        return user
 
     def get_company(self, user_id: int) -> models.Company:
-        company, _ = self._get_company(
+        user = self._get_company(
             user_id=user_id,
             permissions=[UserRole.ADMIN, UserRole.DIRECTOR]
         )
-        return company
+        return user.company
 
     def create_company(
             self,
@@ -54,6 +51,17 @@ class CompanyService:
         user.role = UserRole.DIRECTOR
         utils.update_in_db(self.session, user)
 
+        BalanceService.create_balance(
+            session=self.session,
+            ident=company.id,
+            balance_type=BalanceType.COMPANY
+        )
+
+        BudgetService.create_budget(
+            session=self.session,
+            company_id=company.id
+        )
+
         return company
 
     def update_company(
@@ -61,59 +69,51 @@ class CompanyService:
             user_id: int,
             data: UpdateCompany
     ) -> models.Company:
-        user = utils.check_user_permission(
-            session=self.session,
-            user_id=user_id,
-            permissions=[UserRole.DIRECTOR]
-        )
-        company: models.Company = utils.get_in_db(
-            session=self.session,
-            model=models.Company,
-            ident=user.company_id
-        )
+        user = self._get_company(user_id, [UserRole.DIRECTOR])
 
         for field, value in data:
-            setattr(company, field, value)
+            setattr(user.company, field, value)
 
-        utils.update_in_db(self.session, company)
+        utils.update_in_db(self.session, user.company)
 
-        return company
+        return user.company
 
     def delete_company(
             self,
             user_id: int
     ):
-        user, company = self._get_company(user_id, [UserRole.DIRECTOR])
-        utils.delete_in_db(self.session, company)
+        director = self._get_company(user_id, [UserRole.DIRECTOR])
 
-        user.role = UserRole.CUSTOMER
-        user.company_id = None
-        utils.update_in_db(self.session, user)
+        for user in director.company.users:
+            user.role = UserRole.CUSTOMER
+            user.company_id = None
+
+        utils.delete_in_db(self.session, director.company)
 
     def add_user(
             self,
-            added_user_id: int,
+            new_user_id: int,
             user_id: int
     ):
-        company, _ = self._get_company(
+        user = self._get_company(
             user_id=user_id,
             permissions=[UserRole.DIRECTOR, UserRole.ADMIN]
         )
 
         new_user = utils.check_user_company(
             session=self.session,
-            user_id=added_user_id
+            user_id=new_user_id
         )
-
-        company.users.append(new_user)
-        utils.update_in_db(self.session, company)
+        new_user.company_id = user.company_id
+        new_user.role = UserRole.ADMIN
+        utils.update_in_db(self.session, new_user)
 
     def delete_user(
             self,
             deleted_user_id: int,
             user_id: int
     ):
-        company, _ = self._get_company(
+        user = self._get_company(
             user_id=user_id,
             permissions=[UserRole.DIRECTOR, UserRole.ADMIN]
         )
@@ -123,31 +123,11 @@ class CompanyService:
             model=models.User,
             ident=deleted_user_id
         )
-        self.check_delete_status(
+        utils.check_delete_status(
             admin_user_id=user_id,
-            company=company,
+            company=user.company,
             old_user=old_user
         )
         old_user.company_id = None
         old_user.role = UserRole.CUSTOMER
         utils.update_in_db(self.session, old_user)
-
-    def check_delete_status(
-            self,
-            admin_user_id: int,
-            company: models.Company,
-            old_user: models.User
-    ):
-        if old_user in company.users:
-            if old_user.id == admin_user_id or \
-                    old_user.role == UserRole.DIRECTOR:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Вы не сможете удалить самого себя"
-                           "или директора из компании!"
-                )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Пользователь не ноходится в компании!"
-            )

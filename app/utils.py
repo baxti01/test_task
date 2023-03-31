@@ -38,7 +38,7 @@ def update_in_db(
         session: Session,
         obj: Base
 ):
-    session.commit()
+    check_unique(session)
     session.refresh(obj)
 
 
@@ -68,19 +68,18 @@ def check_unique(session: Session) -> None:
             )
         if isinstance(err.orig, errors.lookup(NUMERIC_VALUE_OUT_OF_RANGE)):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_409_CONFLICT,
                 detail="Целое число вне диапазона",
-                headers={'WWW-Authenticate': 'Bearer'},
             )
 
 
 def check_user(session: Session, user_id: int) -> models.User:
-    user = get_in_db(
+    user: models.User = get_in_db(
         session=session,
         model=models.User,
         ident=user_id
     )
-    if user.company_id is None:
+    if user.company_id is None and user.worker_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Пользователь не состоит в компании!"
@@ -112,12 +111,12 @@ def check_user_company(
         session: Session,
         user_id: int
 ) -> models.User:
-    user = get_in_db(
+    user: models.User = get_in_db(
         session=session,
         model=models.User,
         ident=user_id
     )
-    if user.company_id is not None:
+    if user.company_id or user.worker_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Пользователь уже состоит в компании!"
@@ -125,9 +124,21 @@ def check_user_company(
     return user
 
 
-def is_none_check(obj: Base):
-    if not obj:
+def check_delete_status(
+        admin_user_id: int,
+        company: models.Company,
+        old_user: models.User
+):
+    if old_user in company.users:
+        if old_user.id == admin_user_id or \
+                old_user.role == UserRole.DIRECTOR:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Вы не сможете удалить самого себя"
+                       "или директора из компании!"
+            )
+    else:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Такой записи нет в базе данных"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Пользователь не ноходится в компании!"
         )

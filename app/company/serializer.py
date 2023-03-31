@@ -1,9 +1,11 @@
+import enum
 from typing import Optional, List
 
 from pydantic import BaseModel
 
 from app.auth.serializer import User
-from app.balance.serializer import Balance
+from app.database.enums import UserRole
+from app.worker.serializer import Worker
 
 
 class BaseCompany(BaseModel):
@@ -13,8 +15,9 @@ class BaseCompany(BaseModel):
 class Company(BaseCompany):
     id: int
 
-    # workers: Optional[List[Worker]] = []
+    workers: Optional[List[Worker]] = []
     users: Optional[List[User]] = []
+
     # finance: Optional[List[Finance]] = []
     # balance: Balance
     # budget: Optional[Budget] = []
