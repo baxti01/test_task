@@ -38,3 +38,6 @@ class BaseBalanceHistory(BaseModel):
 class BalanceHistory(BaseBalanceHistory):
     id: int
     prev_balance: Decimal
+
+    class Config:
+        orm_mode = True

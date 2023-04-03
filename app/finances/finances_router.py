@@ -8,7 +8,7 @@ from app.finances.service import FinanceService
 
 router = APIRouter(
     prefix='/finances',
-    tags=['Расхды и поступления']
+    tags=['Расхды и доходы']
 )
 
 
@@ -28,6 +28,18 @@ def create_finance(
         service: FinanceService = Depends()
 ):
     return service.create_finances(
+        user_id=user_id,
+        data=data
+    )
+
+
+@router.post('/replenish_balance', response_model=Finance)
+def replenish_balance(
+        data: CreateFinance,
+        user_id: int = Depends(get_current_user),
+        service: FinanceService = Depends()
+):
+    return service.replenish_balance(
         user_id=user_id,
         data=data
     )

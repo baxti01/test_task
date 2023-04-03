@@ -24,3 +24,10 @@ class CreateWorker(BaseWorker):
 
 class UpdateWorker(BaseWorker):
     pass
+
+
+class InvoiceWorker(BaseWorker):
+    id: int
+
+    class Config:
+        orm_mode = True

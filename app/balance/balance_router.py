@@ -23,7 +23,7 @@ async def get_balance(
     return service.get_balance(user_id, balance_type)
 
 
-@router.get('/history/{balance_type}', response_model=List[BalanceHistory])
+@router.get('/{balance_type}/history/', response_model=List[BalanceHistory])
 async def get_balance_history(
         balance_type: BalanceType,
         period: Period = Depends(),

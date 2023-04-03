@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, Optional
 
 from fastapi import HTTPException, status
 from psycopg2 import errors
@@ -90,10 +90,12 @@ def check_user(session: Session, user_id: int) -> models.User:
 
 def check_user_permission(
         session: Session,
-        user_id: int,
-        permissions: Union[List[UserRole], str]
+        permissions: Union[List[UserRole], str],
+        user_id: Optional[int] = None,
+        user: Optional[models.User] = None
 ):
-    user = check_user(session, user_id)
+    if not user and user_id:
+        user = check_user(session, user_id)
 
     if '__all__' in permissions:
         return user

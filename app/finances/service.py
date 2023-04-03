@@ -1,14 +1,16 @@
+from decimal import Decimal
 from typing import List
 
 from fastapi import Depends
-from sqlalchemy import desc
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from app import utils
+from app.balance.service import BalanceService
 from app.budget.service import BudgetService
 from app.database import models
 from app.database.database import get_session
-from app.database.enums import UserRole
+from app.database.enums import UserRole, TransactionType
 from app.finances.serializer import Period, CreateFinance
 
 
@@ -21,7 +23,7 @@ class FinanceService:
             self,
             user_id: int,
             period: Period
-    ) -> List[models.Finance]:
+    ):
         company, _ = self._get_company(
             user_id=user_id,
             permissions=[UserRole.ADMIN, UserRole.DIRECTOR]
@@ -29,10 +31,14 @@ class FinanceService:
         finance = (
             self.session
             .query(models.Finance)
-            .filter_by(company_id=company.id)
-            .where(models.Finance.date >= period.from_date)
-            .where(models.Finance.date < period.to_date)
-            .order_by(desc(models.Finance.date))
+            .filter(
+                and_(
+                    models.Finance.company_id == company.id,
+                    models.Finance.date >= period.from_date,
+                    models.Finance.date < period.to_date
+                )
+            )
+            # .order_by(desc(models.Finance.date))
             .all()
         )
         return finance
@@ -42,16 +48,28 @@ class FinanceService:
             user_id: int,
             data: CreateFinance
     ):
-        company, _ = self._get_company(
-            user_id,
-            permissions=[UserRole.ADMIN, UserRole.DIRECTOR]
-        )
+        finance, company = self._create_finance(user_id, data)
+        return finance
 
-        return self.create_finance(
-            session=self.session,
-            data=data,
-            company=company
-        )
+    def replenish_balance(
+            self,
+            user_id: int,
+            data: CreateFinance
+    ):
+        try:
+            with self.session.begin():
+                finance, company = self._create_finance(user_id, data)
+                balance, balance_history = BalanceService.change_balance(
+                    amount=Decimal(finance.amount),
+                    transaction_type=TransactionType.INCOME,
+                    date=finance.date,
+                    balance=company.balance,
+                    finance=finance
+                )
+                self.session.add(balance_history)
+                return finance
+        except Exception as e:
+            raise e
 
     def _get_company(
             self,
@@ -65,21 +83,40 @@ class FinanceService:
         )
         return user.company, user
 
+    def _create_finance(
+            self,
+            user_id: int,
+            data: CreateFinance
+    ):
+        try:
+            with self.session.begin_nested():
+                company, _ = self._get_company(
+                    user_id,
+                    permissions=[UserRole.ADMIN, UserRole.DIRECTOR]
+                )
+                finance, budget, budget_history = self.create_finance(
+                    data=data,
+                    company=company
+                )
+                self.session.add(budget_history)
+                self.session.add(finance)
+                return finance, company
+        except Exception as e:
+            raise e
+
     @classmethod
     def create_finance(
             cls,
-            session: Session,
             data: CreateFinance,
             company: models.Company,
-    ):
+    ) -> tuple[models.Finance, models.Budget, models.BudgetHistory]:
         finance = models.Finance(
             **data.dict(),
             company_id=company.id,
         )
-        utils.save_in_db(session, finance)
-        BudgetService.change_budget(
-            session=session,
+
+        budget, budget_history = BudgetService.change_budget(
             budget=company.budget,
             finance=finance
         )
-        return finance
+        return finance, budget, budget_history

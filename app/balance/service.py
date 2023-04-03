@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import List, Union
 
 from fastapi import Depends, HTTPException, status
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from app import utils
@@ -42,7 +43,7 @@ class BalanceService:
             user_id: int,
             balance_type: BalanceType,
             period: Period
-    ) -> models.Balance:
+    ):
         owner = self._get_balance_owner(
             user_id=user_id,
             balance_type=balance_type
@@ -51,9 +52,13 @@ class BalanceService:
         return (
             self.session
             .query(models.BalanceHistory)
-            .filter_by(balance_id=owner.balance.id)
-            .where(models.BalanceHistory.date >= period.from_date)
-            .where(models.BalanceHistory.date < period.to_date)
+            .filter(
+                and_(
+                    models.BalanceHistory.balance_id == owner.balance.id,
+                    models.BalanceHistory.date >= period.from_date,
+                    models.BalanceHistory.date < period.to_date
+                )
+            )
             .all()
         )
 
@@ -108,13 +113,13 @@ class BalanceService:
     @classmethod
     def change_balance(
             cls,
-            session: Session,
             amount: Decimal,
             transaction_type: TransactionType,
+            date: datetime,
             balance: models.Balance,
             invoice: models.Invoice = None,
             finance: models.Finance = None
-    ):
+    ) -> tuple[models.Balance, models.BalanceHistory]:
         balance_history = models.BalanceHistory(
             prev_balance=balance.balance,
             date=balance.date,
@@ -130,11 +135,10 @@ class BalanceService:
         else:
             balance.balance -= amount
 
-        balance.date = finance.date
-        balance.invoice_id = invoice.id
-        balance.finance_id = finance.id
+        balance.date = date
+        if invoice:
+            balance.invoice_id = invoice.id
+        if finance:
+            balance.finance_id = finance.id
 
-        utils.update_in_db(session, balance)
-        utils.save_in_db(session, balance_history)
-
-        return balance
+        return balance, balance_history

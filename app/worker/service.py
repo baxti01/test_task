@@ -53,6 +53,7 @@ class WorkerService:
         utils.save_in_db(self.session, worker)
 
         worker_user.worker_id = worker.id
+        worker_user.company_id = worker.company_id
         worker_user.role = UserRole.WORKER_DIRECTOR
         utils.update_in_db(self.session, worker_user)
 
@@ -89,6 +90,7 @@ class WorkerService:
         worker = self._get_worker(user, worker_id)
         for user in worker.users:
             user.role = UserRole.CUSTOMER
+            user.company_id = None
 
         utils.delete_in_db(self.session, worker)
 
@@ -105,6 +107,7 @@ class WorkerService:
         new_user = utils.check_user_company(self.session, new_user_id)
 
         new_user.worker_id = user.worker_id
+        new_user.company_id = user.company_id
         new_user.role = UserRole.WORKER_ADMIN
         utils.update_in_db(self.session, new_user)
 
@@ -117,7 +120,7 @@ class WorkerService:
             user_id=user_id,
             permissions=[UserRole.WORKER_DIRECTOR, UserRole.WORKER_ADMIN]
         )
-        print("sdsd")
+
         old_user = self._get_user(old_user_id, '__all__')
 
         utils.check_delete_status(
@@ -127,6 +130,7 @@ class WorkerService:
         )
 
         old_user.worker_id = None
+        old_user.company_id = None
         old_user.role = UserRole.CUSTOMER
         utils.update_in_db(self.session, old_user)
 

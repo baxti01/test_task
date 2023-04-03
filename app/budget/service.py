@@ -1,8 +1,8 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import List
 
 from fastapi import Depends
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from app import utils
@@ -27,15 +27,19 @@ class BudgetService:
             self,
             user_id: int,
             period: Period
-    ) -> List[models.BudgetHistory]:
+    ):
         budget = self._get_budget(user_id)
-        print("profit", budget.profit)
+
         return (
             self.session
             .query(models.BudgetHistory)
-            .filter_by(budget_id=budget.id)
-            .where(models.BudgetHistory.date >= period.from_date)
-            .where(models.BudgetHistory.date < period.to_date)
+            .filter(
+                and_(
+                    models.BudgetHistory.budget_id == budget.id,
+                    models.BudgetHistory.date >= period.from_date,
+                    models.BudgetHistory.date < period.to_date
+                )
+            )
             .all()
         )
 
@@ -68,10 +72,9 @@ class BudgetService:
     @classmethod
     def change_budget(
             cls,
-            session: Session,
             budget: models.Budget,
             finance: models.Finance
-    ):
+    ) -> tuple[models.Budget, models.BudgetHistory]:
         budget_history = models.BudgetHistory(
             income=budget.income,
             expense=budget.expense,
@@ -92,5 +95,4 @@ class BudgetService:
         budget.date = finance.date
         budget.finance_id = finance.id
 
-        utils.update_in_db(session, budget)
-        utils.save_in_db(session, budget_history)
+        return budget, budget_history
